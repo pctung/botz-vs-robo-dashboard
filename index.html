@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOTZ vs ROBO ETF 比較儀表板</title>
+<style>
+:root {
+  --bg: #F7F6F2;
+  --surface: #F9F8F5;
+  --surface-alt: #FBFBF9;
+  --border: #D4D1CA;
+  --text: #28251D;
+  --text-muted: #7A7974;
+  --text-faint: #BAB9B4;
+  --primary: #01696F;
+  --primary-hover: #0C4E54;
+  --botz-color: #20808D;
+  --robo-color: #A84B2F;
+  --success: #437A22;
+  --warning: #964219;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 14px;
+}
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 32px 0 24px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.header .subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.header .as-of {
+  color: var(--text-faint);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Summary Cards */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.summary-card .label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.summary-card .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+}
+.summary-card .value.botz { color: var(--botz-color); }
+.summary-card .value.robo { color: var(--robo-color); }
+.summary-card .sub-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+/* Two column layout */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 32px;
+}
+@media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+/* Section */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title .icon { display: inline-block; margin-right: 8px; }
+.section-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* Tables */
+.table-wrapper { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  background: var(--surface-alt);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+  position: relative;
+}
+th:hover { background: var(--border); color: var(--text); }
+th .sort-indicator {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--text-faint);
+  font-size: 10px;
+}
+th.sorted-asc .sort-indicator::after { content: " ▲"; color: var(--primary); }
+th.sorted-desc .sort-indicator::after { content: " ▼"; color: var(--primary); }
+td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+}
+tr:hover { background: var(--surface-alt); }
+.botz-text { color: var(--botz-color); font-weight: 600; }
+.robo-text { color: var(--robo-color); font-weight: 600; }
+
+/* Weight bars */
+.weight-bar-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.weight-bar {
+  width: 80px;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.weight-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.weight-bar-fill.botz { background: var(--botz-color); }
+.weight-bar-fill.robo { background: var(--robo-color); }
+.weight-value { font-weight: 600; min-width: 50px; }
+
+/* Comparison bars */
+.compare-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.compare-bar-label {
+  width: 140px;
+  font-size: 13px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.compare-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.compare-bar {
+  height: 18px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 30px;
+}
+.compare-bar.botz { background: var(--botz-color); }
+.compare-bar.robo { background: var(--robo-color); }
+.compare-bar.empty { background: var(--border); color: var(--text-faint); }
+
+/* Overlap table */
+.overlap-high { background: rgba(67, 122, 34, 0.08); }
+.overlap-medium { background: rgba(150, 66, 25, 0.06); }
+.overlap-low { background: rgba(161, 44, 123, 0.05); }
+
+/* Analysis cards */
+.analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 16px;
+}
+@media (max-width: 768px) { .analysis-grid { grid-template-columns: 1fr; } }
+.analysis-card {
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid;
+}
+.analysis-card.botz { border-color: var(--botz-color); background: rgba(32, 128, 141, 0.04); }
+.analysis-card.robo { border-color: var(--robo-color); background: rgba(168, 75, 47, 0.04); }
+.analysis-card h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.analysis-card.botz h3 { color: var(--botz-color); }
+.analysis-card.robo h3 { color: var(--robo-color); }
+.analysis-card ul { list-style: none; padding: 0; }
+.analysis-card li {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.analysis-card li:last-child { border-bottom: none; }
+.analysis-card .tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+.analysis-card .tag.ai { background: rgba(122, 57, 187, 0.12); color: #7A39BB; }
+.analysis-card .tag.hw { background: rgba(0, 100, 148, 0.12); color: #006494; }
+.analysis-card .tag.fund { background: rgba(218, 113, 1, 0.12); color: #DA7101; }
+
+/* KPI badge */
+.kpi-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.kpi-badge.botz { background: rgba(32, 128, 141, 0.12); color: var(--botz-color); }
+.kpi-badge.robo { background: rgba(168, 75, 47, 0.12); color: var(--robo-color); }
+
+/* Conclusion */
+.conclusion {
+  background: linear-gradient(135deg, rgba(32, 128, 141, 0.05), rgba(168, 75, 47, 0.05));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-top: 24px;
+}
+.conclusion h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.conclusion p { font-size: 14px; color: var(--text); margin-bottom: 10px; }
+.conclusion strong { color: var(--primary); }
+
+/* Sources */
+.sources {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--surface-alt);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.sources a { color: var(--primary); text-decoration: none; }
+.sources a:hover { text-decoration: underline; }
+
+/* Tab system */
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 2px solid var(--border);
+}
+.tab {
+  padding: 10px 24px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>BOTZ vs ROBO — 機器人與自動化 ETF 比較儀表板</h1>
+  <div class="subtitle">Global X Robotics & AI ETF vs ROBO Global Robotics & Automation Index ETF</div>
+  <div class="as-of">持股資料截至：BOTZ 2026/06/30 (Global X 官方) | ROBO 2026/07 (Morningstar / Schwab / TradingView 交叉驗證)</div>
+</div>
+
+<!-- Summary Cards -->
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="label">BOTZ 管理資產規模</div>
+    <div class="value botz">$3.49B</div>
+    <div class="sub-label">Global X ETFs</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">ROBO 管理資產規模</div>
+    <div class="value robo">$2.0B</div>
+    <div class="sub-label">ROBO Global / First Trust</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">BOTZ 費用率</div>
+    <div class="value botz">0.68%</div>
+    <div class="sub-label">較低，具成本優勢</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">ROBO 費用率</div>
+    <div class="value robo">0.95%</div>
+    <div class="sub-label">較高，但分散度更佳</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">BOTZ 持股數</div>
+    <div class="value botz">~65</div>
+    <div class="sub-label">前十大集中度 ~60%</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">ROBO 持股數</div>
+    <div class="value robo">~85</div>
+    <div class="sub-label">前十大集中度 ~17%</div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(event, 'holdings')">前十大持股</div>
+  <div class="tab" onclick="switchTab(event, 'overlap')">重疊權重分析</div>
+  <div class="tab" onclick="switchTab(event, 'sector')">產業配置比較</div>
+  <div class="tab" onclick="switchTab(event, 'strategy')">策略分析</div>
+</div>
+
+<!-- Tab 1: Top Holdings -->
+<div id="holdings" class="tab-content active" style="padding-top: 20px;">
+  <div class="two-col">
+    <div class="section" style="margin-bottom:0;">
+      <div class="section-title">
+        <span style="display:inline-block;width:12px;height:12px;background:var(--botz-color);border-radius:2px;margin-right:8px;"></span>
+        BOTZ 前十大持股
+      </div>
+      <div class="section-desc">追蹤 Indxx Global Robotics & AI Thematic Index | 修正市值加權，單一權重上限 8%（超標）</div>
+      <div class="table-wrapper">
+        <table id="botz-holdings" class="sortable">
+          <thead>
+            <tr>
+              <th data-sort="rank" data-type="number">排名<span class="sort-indicator"></span></th>
+              <th data-sort="ticker" data-type="string">股票代碼<span class="sort-indicator"></span></th>
+              <th data-sort="name" data-type="string">公司名稱<span class="sort-indicator"></span></th>
+              <th data-sort="weight" data-type="number" class="sorted-desc">權重 (%)<span class="sort-indicator"></span></th>
+              <th data-sort="category" data-type="string">分類<span class="sort-indicator"></span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>6861 JP</td><td>Keyence Corp (基恩斯)</td><td>9.69</td><td>感測器/視覺/測量</td></tr>
+            <tr><td>2</td><td>ABBN SW</td><td>ABB Ltd (ABB)</td><td>9.48</td><td>工業自動化</td></tr>
+            <tr><td>3</td><td>6954 JP</td><td>Fanuc Corp (發那科)</td><td>8.60</td><td>工業自動化/機器人</td></tr>
+            <tr><td>4</td><td>NVDA</td><td>NVIDIA Corp</td><td>8.39</td><td>AI 半導體/GPU</td></tr>
+            <tr><td>5</td><td>ISRG</td><td>Intuitive Surgical</td><td>6.72</td><td>醫療機器人</td></tr>
+            <tr><td>6</td><td>6273 JP</td><td>SMC Corp</td><td>4.50</td><td>工業自動化零組件</td></tr>
+            <tr><td>7</td><td>300124 C2</td><td>Shenzhen Inovance</td><td>4.17</td><td>工業自動化/機器人</td></tr>
+            <tr><td>8</td><td>6383 JP</td><td>Daifuku Co Ltd</td><td>3.53</td><td>物流/倉儲自動化</td></tr>
+            <tr><td>9</td><td>6506 JP</td><td>YASKAWA Electric</td><td>2.49</td><td>工業自動化/機器人</td></tr>
+            <tr><td>10</td><td>GOOGL</td><td>Alphabet Inc</td><td>2.38</td><td>AI 軟體與平台</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">資料來源：<a href="https://www.globalxetfs.com/funds/botz" target="_blank" style="color:var(--primary);text-decoration:none;">Global X 官方</a> | 截至 2026/06/30</p>
+    </div>
+
+    <div class="section" style="margin-bottom:0;">
+      <div class="section-title">
+        <span style="display:inline-block;width:12px;height:12px;background:var(--robo-color);border-radius:2px;margin-right:8px;"></span>
+        ROBO 前十大持股
+      </div>
+      <div class="section-desc">追蹤 ROBO Global Robotics & Automation Index | 鐘型加權 (Bell Curve)，最大權重約 2%</div>
+      <div class="table-wrapper">
+        <table id="robo-holdings" class="sortable">
+          <thead>
+            <tr>
+              <th data-sort="rank" data-type="number">排名<span class="sort-indicator"></span></th>
+              <th data-sort="ticker" data-type="string">股票代碼<span class="sort-indicator"></span></th>
+              <th data-sort="name" data-type="string">公司名稱<span class="sort-indicator"></span></th>
+              <th data-sort="weight" data-type="number" class="sorted-desc">權重 (%)<span class="sort-indicator"></span></th>
+              <th data-sort="category" data-type="string">分類<span class="sort-indicator"></span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>SYM</td><td>Symbotic Inc</td><td>1.81</td><td>物流/倉儲自動化</td></tr>
+            <tr><td>2</td><td>6954 JP</td><td>Fanuc Corp (發那科)</td><td>1.75</td><td>工業自動化/機器人</td></tr>
+            <tr><td>3</td><td>NOVT</td><td>Novanta Inc</td><td>1.72</td><td>感測器/視覺/測量</td></tr>
+            <tr><td>4</td><td>ISRG</td><td>Intuitive Surgical</td><td>1.72</td><td>醫療機器人</td></tr>
+            <tr><td>5</td><td>IPGP</td><td>IPG Photonics</td><td>1.71</td><td>感測器/視覺/測量</td></tr>
+            <tr><td>6</td><td>NVDA</td><td>NVIDIA Corp</td><td>1.66</td><td>AI 半導體/GPU</td></tr>
+            <tr><td>7</td><td>6324 JP</td><td>Harmonic Drive Systems</td><td>1.66</td><td>機器人零組件</td></tr>
+            <tr><td>8</td><td>TER</td><td>Teradyne Inc</td><td>1.63</td><td>半導體測試設備</td></tr>
+            <tr><td>9</td><td>ROK</td><td>Rockwell Automation</td><td>1.61</td><td>工業自動化</td></tr>
+            <tr><td>10</td><td>ATS</td><td>ATS Corp</td><td>1.58</td><td>工業自動化</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">資料來源：<a href="https://www.morningstar.com/etfs/xasx/robo/quote" target="_blank" style="color:var(--primary);text-decoration:none;">Morningstar</a>、<a href="https://www.schwab.wallst.com/schwab/Prospect/research/etfs/schwabETF/index.asp?type=holdings&symbol=ROBO" target="_blank" style="color:var(--primary);text-decoration:none;">Schwab</a> | 截至 2026/07</p>
+    </div>
+  </div>
+
+  <!-- Fund Comparison Table -->
+  <div class="section" style="margin-top:24px;">
+    <div class="section-title">ETF 基本資料對照</div>
+    <div class="table-wrapper">
+      <table class="sortable">
+        <thead>
+          <tr>
+            <th data-sort="metric" data-type="string">指標<span class="sort-indicator"></span></th>
+            <th data-sort="botz" data-type="string">BOTZ<span class="sort-indicator"></span></th>
+            <th data-sort="robo" data-type="string">ROBO<span class="sort-indicator"></span></th>
+            <th data-sort="note" data-type="string">差異說明<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>全名</td><td>Global X Robotics & AI ETF</td><td>ROBO Global Robotics & Automation Index ETF</td><td>—</td></tr>
+          <tr><td>發行商</td><td>Global X (Mirae Asset)</td><td>ROBO Global / First Trust</td><td>不同管理團隊</td></tr>
+          <tr><td>追蹤指數</td><td>Indxx Global Robotics & AI Thematic Index</td><td>ROBO Global Robotics & Automation Index</td><td>不同指數編製方法</td></tr>
+          <tr><td>費用率</td><td class="botz-text">0.68%</td><td class="robo-text">0.95%</td><td>BOTZ 低 27bps</td></tr>
+          <tr><td>AUM</td><td class="botz-text">$3.49B</td><td class="robo-text">$2.0B</td><td>BOTZ 規模較大</td></tr>
+          <tr><td>持股數</td><td>~65</td><td>~85</td><td>ROBO 更分散</td></tr>
+          <tr><td>前十大集中度</td><td class="botz-text">~60%</td><td class="robo-text">~17%</td><td>BOTZ 高度集中</td></tr>
+          <tr><td>加權方式</td><td>修正市值加權 (8%上限)</td><td>鐘型加權 (Bell Curve)</td><td>核心策略差異</td></tr>
+          <tr><td>P/E 比率</td><td>~36.6</td><td>~28.4</td><td>BOTZ 估值較高</td></tr>
+          <tr><td>成立日期</td><td>2016/09/12</td><td>2013/10/22</td><td>ROBO 歷史較長</td></tr>
+          <tr><td>1年報酬 (NAV)</td><td>16.24%</td><td>~18.3%</td><td>近期 ROBO 表現較佳</td></tr>
+          <tr><td>股息殖利率</td><td>0.47%</td><td>0.42%</td><td>兩者皆低</td></tr>
+          <tr><td>Beta (vs S&P 500)</td><td>1.67</td><td>~1.3</td><td>BOTZ 波動較大</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Tab 2: Overlap Analysis -->
+<div id="overlap" class="tab-content" style="padding-top: 20px;">
+  <div class="section">
+    <div class="section-title">核心龍頭股重疊權重分析</div>
+    <div class="section-desc">比較 BOTZ 與 ROBO 在 NVIDIA、ABB、Keyence 等核心自動化龍頭股的權重配置，共同曝險 = min(BOTZ 權重, ROBO 權重)</div>
+    <div class="table-wrapper">
+      <table class="sortable" id="overlap-table">
+        <thead>
+          <tr>
+            <th data-sort="name" data-type="string">公司名稱<span class="sort-indicator"></span></th>
+            <th data-sort="ticker" data-type="string">代碼<span class="sort-indicator"></span></th>
+            <th data-sort="botz" data-type="number" class="sorted-desc">BOTZ 權重 (%)<span class="sort-indicator"></span></th>
+            <th data-sort="robo" data-type="number">ROBO 權重 (%)<span class="sort-indicator"></span></th>
+            <th data-sort="diff" data-type="number">權重差 (pp)<span class="sort-indicator"></span></th>
+            <th data-sort="overlap" data-type="number">共同曝險 (%)<span class="sort-indicator"></span></th>
+            <th data-sort="level" data-type="string">重疊程度<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>NVIDIA Corp</td><td>NVDA</td><td class="botz-text">8.39</td><td class="robo-text">1.66</td><td>+6.73</td><td>1.66</td><td><span class="kpi-badge botz">BOTZ 主導</span></td></tr>
+          <tr><td>Keyence Corp (基恩斯)</td><td>6861</td><td class="botz-text">9.69</td><td class="robo-text">1.57</td><td>+8.12</td><td>1.57</td><td><span class="kpi-badge botz">BOTZ 主導</span></td></tr>
+          <tr><td>ABB Ltd</td><td>ABBN</td><td class="botz-text">9.48</td><td class="robo-text">未在前 15 大發現</td><td>+9.48</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 未持</span></td></tr>
+          <tr><td>Fanuc Corp (發那科)</td><td>6954</td><td class="botz-text">8.60</td><td class="robo-text">1.75</td><td>+6.85</td><td>1.75</td><td><span class="kpi-badge botz">BOTZ 主導</span></td></tr>
+          <tr><td>Intuitive Surgical</td><td>ISRG</td><td class="botz-text">6.72</td><td class="robo-text">1.72</td><td>+5.00</td><td>1.72</td><td><span class="kpi-badge botz">BOTZ 主導</span></td></tr>
+          <tr><td>SMC Corp</td><td>6273</td><td class="botz-text">4.50</td><td class="robo-text">1.66</td><td>+2.84</td><td>1.66</td><td><span class="kpi-badge botz">BOTZ 主導</span></td></tr>
+          <tr><td>Daifuku Co Ltd</td><td>6383</td><td class="botz-text">3.53</td><td class="robo-text">1.57</td><td>+1.96</td><td>1.57</td><td><span class="kpi-badge botz">BOTZ 主導</span></td></tr>
+          <tr><td>Rockwell Automation</td><td>ROK</td><td class="robo-text">未在前 15 大發現</td><td class="robo-text">1.61</td><td>-1.61</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 獨有</span></td></tr>
+          <tr><td>Teradyne Inc</td><td>TER</td><td class="robo-text">未在前 15 大發現</td><td class="robo-text">1.63</td><td>-1.63</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 獨有</span></td></tr>
+          <tr><td>Novanta Inc</td><td>NOVT</td><td class="robo-text">未在前 15 大發現</td><td class="robo-text">1.72</td><td>-1.72</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 獨有</span></td></tr>
+          <tr><td>Symbotic Inc</td><td>SYM</td><td>1.17</td><td class="robo-text">1.81</td><td>-0.64</td><td>1.17</td><td><span class="kpi-badge robo">ROBO 主導</span></td></tr>
+          <tr><td>IPG Photonics</td><td>IPGP</td><td class="robo-text">未在前 15 大發現</td><td class="robo-text">1.71</td><td>-1.71</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 獨有</span></td></tr>
+          <tr><td>Harmonic Drive Systems</td><td>6324</td><td class="robo-text">未在前 15 大發現</td><td class="robo-text">1.66</td><td>-1.66</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 獨有</span></td></tr>
+          <tr><td>ATS Corp</td><td>ATS</td><td class="robo-text">未在前 15 大發現</td><td class="robo-text">1.58</td><td>-1.58</td><td>0.00</td><td><span class="kpi-badge robo">ROBO 獨有</span></td></tr>
+          <tr><td>Alphabet Inc</td><td>GOOGL</td><td class="botz-text">2.38</td><td class="robo-text">未在前 15 大發現</td><td>+2.38</td><td>0.00</td><td><span class="kpi-badge botz">BOTZ 獨有</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+      註：共同曝險 = min(BOTZ 權重, ROBO 權重)，代表投資人同時持有兩檔 ETF 時在該股票上不會重複的曝險。<br>
+      權重差為正表示 BOTZ 權重較高，為負表示 ROBO 權重較高。「未在前 15 大發現」表示該股不在該 ETF 前 15 大持股中，但不排除以極小權重持有。
+    </p>
+  </div>
+
+  <!-- Overlap Summary -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="label">共同持股數量</div>
+      <div class="value" style="color:var(--primary);">~7+</div>
+      <div class="sub-label">前十大中有 6 檔重疊</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">BOTZ 前十大總權重</div>
+      <div class="value botz">~58%</div>
+      <div class="sub-label">高度集中於龍頭股</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">ROBO 前十大總權重</div>
+      <div class="value robo">~17%</div>
+      <div class="sub-label">極度分散，最大持股僅 ~2%</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">NVIDIA+ABB+Keyence 合計</div>
+      <div class="value botz">27.6%</div>
+      <div class="sub-label">BOTZ 在三大龍頭的曝險</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab 3: Sector Allocation -->
+<div id="sector" class="tab-content" style="padding-top: 20px;">
+  <div class="section">
+    <div class="section-title">產業 (GICS) 配置比較</div>
+    <div class="section-desc">BOTZ 數據來自 Global X 官方；ROBO 數據來自 Investing.com / Schwab 等第三方資料供應商，非 ROBO 官方直接提供</div>
+    <div class="table-wrapper">
+      <table class="sortable">
+        <thead>
+          <tr>
+            <th data-sort="sector" data-type="string">產業 (GICS)<span class="sort-indicator"></span></th>
+            <th data-sort="botz" data-type="number" class="sorted-desc">BOTZ (%)<span class="sort-indicator"></span></th>
+            <th data-sort="robo" data-type="number">ROBO (%)<span class="sort-indicator"></span></th>
+            <th data-sort="diff" data-type="number">差異 (pp)<span class="sort-indicator"></span></th>
+            <th data-sort="bar" data-type="string">視覺化<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>工業 (Industrials)</td><td class="botz-text">45.8</td><td class="robo-text">47.4</td><td>-1.6</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar botz" style="width:91.6%;">45.8%</div>
+                  <div class="compare-bar robo" style="width:94.8%;">47.4%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>資訊科技 (Information Technology)</td><td class="botz-text">35.2</td><td class="robo-text">40.8</td><td>-5.6</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar botz" style="width:70.4%;">35.2%</div>
+                  <div class="compare-bar robo" style="width:81.6%;">40.8%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>醫療保健 (Health Care)</td><td class="botz-text">9.2</td><td class="robo-text">5.4</td><td>+3.8</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar botz" style="width:18.4%;">9.2%</div>
+                  <div class="compare-bar robo" style="width:10.8%;">5.4%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>通訊服務 (Communication Services)</td><td class="botz-text">4.3</td><td class="robo-text">0.7</td><td>+3.6</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar botz" style="width:8.6%;">4.3%</div>
+                  <div class="compare-bar robo" style="width:1.4%;">0.7%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>消費性選擇 (Consumer Discretionary)</td><td class="botz-text">3.8</td><td class="robo-text">4.3</td><td>-0.5</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar botz" style="width:7.6%;">3.8%</div>
+                  <div class="compare-bar robo" style="width:8.6%;">4.3%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>金融服務 (Financial Services)</td><td class="botz-text">0.0</td><td class="robo-text">1.5</td><td>-1.5</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar empty" style="width:2%;">0%</div>
+                  <div class="compare-bar robo" style="width:3%;">1.5%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td>能源 (Energy)</td><td class="botz-text">1.7</td><td class="robo-text">0.0</td><td>+1.7</td>
+            <td>
+              <div class="compare-bar-row">
+                <div class="compare-bars">
+                  <div class="compare-bar botz" style="width:3.4%;">1.7%</div>
+                  <div class="compare-bar empty" style="width:2%;">0%</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+      資料來源：<a href="https://www.globalxetfs.com/funds/botz" target="_blank" style="color:var(--primary);text-decoration:none;">Global X (BOTZ)</a>、<a href="https://www.investing.com/etfs/etfs-robo-global-robotics-auto-holdings" target="_blank" style="color:var(--primary);text-decoration:none;">Investing.com (ROBO)</a>
+    </p>
+  </div>
+
+  <!-- Normalized Industry Classification -->
+  <div class="section">
+    <div class="section-title">標準化主題分類比較</div>
+    <div class="section-desc">分析師自訂分類 (非官方 GICS)，基於前 20-25 大已識別持股估算各 ETF 在該分類下的持股權重，非完整持股精確加總</div>
+    <div class="table-wrapper">
+      <table class="sortable">
+        <thead>
+          <tr>
+            <th data-sort="category" data-type="string">主題分類<span class="sort-indicator"></span></th>
+            <th data-sort="botz" data-type="number" class="sorted-desc">BOTZ (%)<span class="sort-indicator"></span></th>
+            <th data-sort="robo" data-type="number">ROBO (%)<span class="sort-indicator"></span></th>
+            <th data-sort="diff" data-type="number">差異 (pp)<span class="sort-indicator"></span></th>
+            <th data-sort="desc" data-type="string">說明<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>AI 半導體 / GPU</td><td class="botz-text">~8.4</td><td class="robo-text">~3.4</td><td>+5.0</td><td>BOTZ 透過 NVIDIA 大幅加碼；ROBO 持有 NVDA + AMBA + Infineon</td></tr>
+          <tr><td>AI 軟體與平台</td><td class="botz-text">~8.0</td><td class="robo-text">~3.0</td><td>+5.0</td><td>BOTZ 持 GOOGL、BIDU、PATH 等；ROBO 持 Samsara、Cadence 等</td></tr>
+          <tr><td>工業自動化 / 工廠自動化</td><td class="botz-text">~25.0</td><td class="robo-text">~12.0</td><td>+13.0</td><td>BOTZ 持 ABB、Fanuc、SMC、YASKAWA 等；ROBO 持 ROK、ATS、GEA 等</td></tr>
+          <tr><td>機器人零組件</td><td class="botz-text">~4.0</td><td class="robo-text">~5.0</td><td>-1.0</td><td>ROBO 持 Harmonic Drive、Airtac、Hiwin；BOTZ 較少</td></tr>
+          <tr><td>感測器 / 視覺 / 測量</td><td class="botz-text">~12.0</td><td class="robo-text">~8.0</td><td>+4.0</td><td>BOTZ 持 Keyence (9.7%)、Cognex；ROBO 持 Novanta、IPGP、Ouster</td></tr>
+          <tr><td>醫療機器人 / 生技自動化</td><td class="botz-text">~6.7</td><td class="robo-text">~5.0</td><td>+1.7</td><td>兩者均持 ISRG；ROBO 另持 ILMN</td></tr>
+          <tr><td>物流 / 倉儲自動化</td><td class="botz-text">~4.0</td><td class="robo-text">~5.0</td><td>-1.0</td><td>ROBO 持 Symbotic (第一大)、JBT Marel；BOTZ 持 Daifuku</td></tr>
+          <tr><td>自駕 / 移動機器人</td><td class="botz-text">~5.0</td><td class="robo-text">~2.0</td><td>+3.0</td><td>BOTZ 持 AUR、Tesla、XPeng；ROBO 較少</td></tr>
+          <tr><td>半導體測試 / 設備</td><td class="botz-text">~0.0</td><td class="robo-text">~5.0</td><td>-5.0</td><td>ROBO 持 Teradyne、Jenoptik；BOTZ 幾乎無</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+      註：標準化分類為分析師自訂，非 ETF 官方產業分類。權重為估算值，基於前 20-25 大持股推算，可能因持股變動而有差異。
+    </p>
+  </div>
+
+  <!-- Geographic Allocation -->
+  <div class="section">
+    <div class="section-title">地理配置比較</div>
+    <div class="table-wrapper">
+      <table class="sortable">
+        <thead>
+          <tr>
+            <th data-sort="region" data-type="string">地區<span class="sort-indicator"></span></th>
+            <th data-sort="botz" data-type="number" class="sorted-desc">BOTZ (%)<span class="sort-indicator"></span></th>
+            <th data-sort="robo" data-type="number">ROBO (%)<span class="sort-indicator"></span></th>
+            <th data-sort="diff" data-type="number">差異 (pp)<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>北美 (North America)</td><td class="botz-text">~33</td><td class="robo-text">~43</td><td>-10</td></tr>
+          <tr><td>亞洲 (Asia)</td><td class="botz-text">~53</td><td class="robo-text">~35</td><td>+18</td></tr>
+          <tr><td>已開發歐洲 (Europe Developed)</td><td class="botz-text">~14</td><td class="robo-text">~22</td><td>-8</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:12px;font-size:12px;color:var(--text-muted);">
+      BOTZ 亞洲曝險顯著較高 (日本+中國佔大比重)，ROBO 則在北美與歐洲有更多配置。
+    </p>
+  </div>
+</div>
+
+<!-- Tab 4: Strategy Analysis -->
+<div id="strategy" class="tab-content" style="padding-top: 20px;">
+  <div class="section">
+    <div class="section-title">策略側重差異分析</div>
+    <div class="section-desc">BOTZ 偏向「AI 軟體與大型龍頭集中」策略，ROBO 偏向「硬體供應鏈分散式」策略</div>
+
+    <div class="analysis-grid">
+      <div class="analysis-card botz">
+        <h3>BOTZ — AI 軟體與龍頭集中策略</h3>
+        <ul>
+          <li><span class="tag ai">AI 軟體</span>持有多檔 AI 平台股：NVIDIA (8.4%)、Alphabet (2.4%)、Baidu (1.8%)、UiPath (1.1%)，AI 軟體與半導體合計權重約 16-20%</li>
+          <li><span class="tag hw">硬體集中</span>前三大持股 (Keyence+ABB+NVIDIA) 合計 27.6%，高度依賴龍頭表現</li>
+          <li><span class="tag fund">成本</span>費用率 0.68%，低於 ROBO 27bps，長期持有成本優勢明顯</li>
+          <li><span class="tag fund">亞洲曝險</span>日本 (28%) + 中國 (21%) 合計約 50%，對亞洲供應鏈敏感度高</li>
+          <li><span class="tag ai">自駕佈局</span>持有 Aurora Innovation、Tesla、XPeng，佈局自駕車賽道</li>
+          <li><span class="tag hw">集中風險</span>前十大佔 60%，單一持股權重最高達 9.7%，非系統性風險較高</li>
+        </ul>
+      </div>
+
+      <div class="analysis-card robo">
+        <h3>ROBO — 硬體供應鏈分散策略</h3>
+        <ul>
+          <li><span class="tag hw">硬體供應鏈</span>涵蓋半導體測試 (Teradyne)、光電 (IPG Photonics)、精密零組件 (Harmonic Drive)、氣動元件 (Airtac)，供應鏈覆蓋面廣</li>
+          <li><span class="tag ai">AI 間接曝險</span>僅持 NVIDIA 1.66%，透過 Ambarella (2.0%)、Infineon (2.3%)、Qualcomm (1.9%) 間接佈局 AI 晶片</li>
+          <li><span class="tag fund">分散</span>85 檔持股、前十大僅 17%，最大單一持股約 2%，分散度極佳</li>
+          <li><span class="tag fund">成本</span>費用率 0.95%，高於 BOTZ，但分散度可能降低波動風險</li>
+          <li><span class="tag hw">歐美曝險</span>北美 43% + 歐洲 22%，合計 65%，亞洲曝險相對較低 (35%)</li>
+          <li><span class="tag hw">獨特持股</span>持有 Samsara (IoT 平台)、Cadence (EDA)、Jenoptik (光學) 等 BOTZ 未涵蓋的供應鏈環節</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Differences Summary -->
+  <div class="section">
+    <div class="section-title">關鍵差異速覽</div>
+    <div class="table-wrapper">
+      <table class="sortable">
+        <thead>
+          <tr>
+            <th data-sort="dimension" data-type="string">比較維度<span class="sort-indicator"></span></th>
+            <th data-sort="botz" data-type="string">BOTZ 特徵<span class="sort-indicator"></span></th>
+            <th data-sort="robo" data-type="string">ROBO 特徵<span class="sort-indicator"></span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>加權方式</td><td>修正市值加權 (8%上限)</td><td>鐘型加權 (Bell Curve)，各股 ~1.5-2%</td></tr>
+          <tr><td>集中度</td><td>高 (前十大 58%)</td><td>低 (前十大 17%)</td></tr>
+          <tr><td>AI 軟體/半導體曝險</td><td>~16-20% (NVDA + GOOGL + BIDU 等)</td><td>~6-8% (NVDA + AMBA + IFX + QCOM)</td></tr>
+          <tr><td>工業自動化曝險</td><td>~25% (ABB + Fanuc + SMC + YASKAWA)</td><td>~12% (ROK + ATS + GEA + Fanuc)</td></tr>
+          <tr><td>半導體測試/設備</td><td>幾乎無</td><td>~5% (Teradyne + Jenoptik)</td></tr>
+          <tr><td>NVIDIA 權重</td><td>8.39% (第四大)</td><td>1.66% (第六大)</td></tr>
+          <tr><td>ABB 權重</td><td>9.48% (第二大)</td><td>未持或極小</td></tr>
+          <tr><td>Keyence 權重</td><td>9.69% (第一大)</td><td>1.57% (前 15 大)</td></tr>
+          <tr><td>亞洲曝險</td><td>~53% (日本+中國為主)</td><td>~35% (日本為主)</td></tr>
+          <tr><td>適合投資人</td><td>追求高成長、能承受集中風險者</td><td>追求分散佈局、降低單一持股風險者</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Conclusion -->
+  <div class="conclusion">
+    <h2>長期自動化投資佈局評估</h2>
+    <p><strong>BOTZ 適合：</strong>看好 AI 與機器人主題的爆發性成長，願意承受較高集中度與估值風險的投資人。BOTZ 透過 NVIDIA、Alphabet、Baidu 等持股，在 AI 軟體與平台領域有顯著佈局，同時以 Keyence、ABB、Fanuc 等工業自動化龍頭作為核心。費用率較低 (0.68%) 是長期持有的成本優勢，但前十大集中度 60% 意味著基金表現高度依賴少數龍頭股。</p>
+    <p><strong>ROBO 適合：</strong>重視風險分散、希望涵蓋更完整自動化供應鏈的投資人。ROBO 的鐘型加權確保沒有單一持股主導，且在半導體測試設備 (Teradyne)、精密零組件 (Harmonic Drive)、IoT 平台 (Samsara) 等 BOTZ 未涵蓋的領域有獨特佈局。歐美曝險較高 (65%)，適合擔心亞洲地緣風險的投資人。但費用率較高 (0.95%) 且對 AI 核心股 (NVIDIA) 曝險偏低，可能在 AI 大趨勢中表現落後。</p>
+    <p><strong>組合策略：</strong>若追求最完整的自動化產業鏈覆蓋，可考慮同時持有兩檔 — BOTZ 提供 AI 軟體與龍頭股的核心曝險，ROBO 補足硬體供應鏈的分散佈局。兩者在 Fanuc、ISRG、SMC、Daifuku、NVIDIA 等股的重疊度有限 (共同曝險合計約 8-10%)，組合後可達到集中與分散的平衡。</p>
+  </div>
+</div>
+
+<!-- Sources -->
+<div class="sources">
+  <strong>資料來源：</strong><br>
+  • <a href="https://www.globalxetfs.com/funds/botz/" target="_blank">Global X 官方 — BOTZ Holdings (截至 2026/06/30)</a><br>
+  • <a href="https://www.morningstar.com/etfs/xasx/robo/quote" target="_blank">Morningstar — ROBO Top Holdings</a><br>
+  • <a href="https://www.schwab.wallst.com/schwab/Prospect/research/etfs/schwabETF/index.asp?type=holdings&symbol=ROBO" target="_blank">Charles Schwab — ROBO Holdings</a><br>
+  • <a href="https://www.schwab.wallst.com/schwab/Prospect/research/etfs/schwabETF/index.asp?type=holdings&symbol=BOTZ" target="_blank">Charles Schwab — BOTZ Holdings</a><br>
+  • <a href="https://www.investing.com/etfs/etfs-robo-global-robotics-auto-holdings" target="_blank">Investing.com — ROBO Holdings & Sector Allocation</a><br>
+  • <a href="https://www.marketbeat.com/stocks/NASDAQ/BOTZ/holdings/" target="_blank">MarketBeat — BOTZ Holdings</a><br>
+  • <a href="https://www.etfcentral.com/compare-etfs/BOTZ-vs-ROBO" target="_blank">ETF Central — BOTZ vs ROBO Comparison</a><br>
+  • <a href="https://www.marketbeat.com/stocks/NYSEARCA/ROBO/" target="_blank">MarketBeat — ROBO Holdings</a><br>
+  • <a href="https://stockanalysis.com/etf/botz/holdings/" target="_blank">StockAnalysis — BOTZ Holdings</a><br>
+  • <a href="https://www.tradingview.com/symbols/AMEX-ROBO/" target="_blank">TradingView — ROBO Holdings</a><br>
+  • <a href="https://247wallst.com/investing/2026/07/06/3-robotics-etfs-positioned-to-capitalize-on-americas-reshoring-boom-in-2026/" target="_blank">247 Wall St — Robotics ETF Analysis</a><br>
+  <br>
+  <em>免責聲明：本報告僅供研究參考，不構成投資建議。ETF 持股與權重會定期調整，實際數據請以發行商官方公告為準。持股資料截至日期不同，比較時請注意時間差異。</em>
+</div>
+
+</div>
+
+<script>
+// Tab switching
+function switchTab(evt, tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  evt.target.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// Sortable tables
+document.querySelectorAll('table.sortable').forEach(table => {
+  const headers = table.querySelectorAll('th');
+  headers.forEach((header, index) => {
+    header.addEventListener('click', () => {
+      const sortKey = header.dataset.sort;
+      const sortType = header.dataset.type;
+      if (!sortKey) return;
+
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const isCurrentlyDesc = header.classList.contains('sorted-desc');
+      const newDirection = isCurrentlyDesc ? 'asc' : 'desc';
+
+      // Clear all sort indicators
+      headers.forEach(h => {
+        h.classList.remove('sorted-asc', 'sorted-desc');
+      });
+      header.classList.add(newDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+
+      // Parse value from cell
+      const parseValue = (cell) => {
+        const text = cell.textContent.trim();
+        if (sortType === 'number') {
+          const cleaned = text.replace(/[^\d.\-—]/g, '');
+          const num = parseFloat(cleaned);
+          return isNaN(num) ? (text.includes('未持') ? 0 : -Infinity) : num;
+        }
+        return text.toLowerCase();
+      };
+
+      rows.sort((a, b) => {
+        const aCell = a.cells[index];
+        const bCell = b.cells[index];
+        if (!aCell || !bCell) return 0;
+        const aVal = parseValue(aCell);
+        const bVal = parseValue(bCell);
+        if (sortType === 'number') {
+          return newDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        }
+        return newDirection === 'asc'
+          ? aVal.localeCompare(bVal, 'zh-TW')
+          : bVal.localeCompare(aVal, 'zh-TW');
+      });
+
+      // Re-append sorted rows
+      rows.forEach(row => tbody.appendChild(row));
+    });
+  });
+});
+</script>
+</body>
+</html>
